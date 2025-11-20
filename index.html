@@ -1,74 +1,3 @@
-<!-- ...existing code... -->
-</div>
-
-<script>
-// ====== Mensaje informativo para tareas próximas a vencer ======
-function checkUpcomingTasks() {
-  const now = new Date();
-  let upcoming = [];
-  for(let m=0;m<12;m++){
-    const key = `calendar-tasks-${now.getFullYear()}-${m}`;
-    let monthTasks = {};
-    try { monthTasks = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
-    for(const day in monthTasks) {
-      monthTasks[day].forEach(task => {
-        if(task.hour && task.alarm && task.alarm > 0) {
-          const taskDate = new Date(now.getFullYear(), m, parseInt(day), ...task.hour.split(':'));
-          const diff = (taskDate - now) / (1000*60); // minutos
-          if(diff > 0 && diff <= task.alarm) {
-            upcoming.push({title: task.title, hour: task.hour, day, month: m});
-          }
-        }
-      });
-    }
-  }
-  showUpcomingTasksMessage(upcoming);
-}
-
-function showUpcomingTasksMessage(upcoming) {
-  let msg = document.getElementById('upcomingTasksMsg');
-  if(!msg) {
-    msg = document.createElement('div');
-    msg.id = 'upcomingTasksMsg';
-    msg.style.position = 'fixed';
-    msg.style.bottom = '10px';
-    msg.style.left = '50%';
-    msg.style.transform = 'translateX(-50%)';
-    msg.style.background = '#ffe3ef';
-    msg.style.border = '2px solid #d6336c';
-    msg.style.borderRadius = '12px';
-    msg.style.boxShadow = '0 2px 8px #d6336c22';
-    msg.style.padding = '16px 28px 16px 28px';
-    msg.style.zIndex = 1000;
-    msg.style.fontSize = '15px';
-    msg.style.color = '#d6336c';
-    msg.style.cursor = 'pointer';
-    msg.title = 'Haz clic para cerrar';
-    msg.onclick = function(){ msg.style.display = 'none'; };
-    document.body.appendChild(msg);
-  }
-  if(upcoming.length > 0) {
-    let html = '<div style="font-weight:bold;font-size:17px;margin-bottom:6px;">¡Tienes tareas próximas a vencer!</div>';
-    html += '<ul style="padding-left:18px;margin:0 0 8px 0;">';
-    upcoming.forEach(t => {
-      html += `<li style='margin-bottom:2px;'>📌 <b>${t.title}</b> — ${t.day+1} de ${getMonthName(t.month)}${t.hour ? `, <span style='color:#6b7280;'>⏰ ${t.hour}</span>` : ''}</li>`;
-    });
-    html += '</ul>';
-    html += '<div style="margin-top:8px;font-size:15px;color:#b8004b;font-weight:bold;">¡Tú puedes! Termina tu tarea a tiempo 🌟</div>';
-    html += '<div style="font-size:12px;color:#6b7280;margin-top:4px;">(Haz clic para cerrar este mensaje)</div>';
-    msg.innerHTML = html;
-    msg.style.display = 'block';
-  } else {
-    msg.style.display = 'none';
-  }
-}
-
-// Revisar cada minuto
-setInterval(checkUpcomingTasks, 60000);
-// Revisar al cargar
-checkUpcomingTasks();
-// ...el resto de tu código JS aquí...
-</script>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -118,6 +47,7 @@ checkUpcomingTasks();
     </div>
   <script>
   // Temáticas disponibles
+  document.addEventListener('DOMContentLoaded', function(){
   const THEMES = {
     flores: {
       '--bg':'#fff6fb', '--accent':'#d6336c', '--muted':'#6b7280',
@@ -190,7 +120,8 @@ checkUpcomingTasks();
   }
 
   // Mostrar/ocultar selector
-  document.getElementById('themeConfigBtn').onclick = function() {
+  document.getElementById('themeConfigBtn').onclick = function(e) {
+    e.stopPropagation();
     const sel = document.getElementById('themeSelector');
     sel.style.display = sel.style.display==='block' ? 'none' : 'block';
   };
@@ -202,12 +133,15 @@ checkUpcomingTasks();
   });
   // Selección de tema
   document.querySelectorAll('.theme-btn').forEach(btn=>{
-    btn.onclick = function(){ applyTheme(btn.dataset.theme); document.getElementById('themeSelector').style.display='none'; };
+    btn.onclick = function(e){ e.stopPropagation(); applyTheme(btn.dataset.theme); document.getElementById('themeSelector').style.display='none'; };
   });
   // Aplicar tema guardado
   const savedTheme = localStorage.getItem('theme') || 'flores';
   setTimeout(()=>applyTheme(savedTheme), 0);
+  });
   </script>
+  
+  <!-- El resto del script ya está incluido en el HTML completo (extraído de flowertime.html) -->
 
     <div class="grid">
       <!-- Lista de tareas -->
@@ -268,5 +202,348 @@ checkUpcomingTasks();
       taskList.appendChild(div);
       input.value = '';
     }
+    // Marcar tarea como cumplida y actualizar racha
+    function completeTask(btn) {
+      // Solo permitir una vez por día
+      if (localStorage.getItem('streak_lastDay') === getTodayStr()) {
+        alert('¡Ya registraste tu tarea cumplida hoy!');
+        return;
+      }
+      btn.disabled = true;
+      btn.innerText = '🎉';
+      updateStreak();
+    }
+    // ====== Racha de tareas ======
+    function getTodayStr() {
+      const today = new Date();
+      return today.getFullYear() + '-' + (today.getMonth()+1).toString().padStart(2,'0') + '-' + today.getDate().toString().padStart(2,'0');
+    }
 
-... (file continues) ...
+    function updateStreak() {
+      const today = getTodayStr();
+      let lastDay = localStorage.getItem('streak_lastDay');
+      let streak = parseInt(localStorage.getItem('streak_count') || '0');
+      if (lastDay === today) {
+        // Ya se registró hoy, no aumentar racha
+        showStreak(streak);
+        return;
+      }
+      if (lastDay) {
+        const last = new Date(lastDay);
+        const now = new Date(today);
+        const diff = (now - last) / (1000*60*60*24);
+        if (diff === 1) {
+          streak += 1;
+        } else {
+          streak = 1;
+        }
+      } else {
+        streak = 1;
+      }
+      localStorage.setItem('streak_lastDay', today);
+      localStorage.setItem('streak_count', streak);
+      showStreak(streak);
+    }
+
+    function showStreak(streak) {
+      const theme = THEMES[localStorage.getItem('theme') || 'flores'];
+      const el = document.getElementById('streakContainer');
+      el.innerHTML = `
+        <div style="background: ${theme.streakBg}; border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px ${theme.streakBorder}22; text-align: center; border: 2px solid ${theme.streakBorder}; max-width: 300px; margin: 0 auto 10px auto; color:${theme.streakText};">
+          <div style="font-size: 18px; font-weight: bold; color: ${theme.streakText}; margin-bottom: 6px;">Racha</div>
+          <div style="font-size: 32px; font-weight: bold; color: ${theme.streakText};">🔥 ${streak} día${streak === 1 ? '' : 's'}</div>
+          <div style="color: #6b7280; font-size: 15px; margin-top: 8px;">¡Sigue así! Cada día cuenta para tu progreso 🌱</div>
+        </div>
+      `;
+    }
+  // Estilos para el botón de racha
+  const style = document.createElement('style');
+  style.innerHTML = `.btn-streak { background: #fff6fb; color: #d6336c; border: 1px solid #d6336c; border-radius: 8px; padding: 4px 10px; margin-right: 4px; font-size: 18px; cursor: pointer; transition: background 0.2s; } .btn-streak:disabled { background: #ffe3ef; color: #aaa; border-color: #ffe3ef; cursor: default; }`;
+  document.head.appendChild(style);
+
+    // Mostrar racha al cargar
+    document.addEventListener('DOMContentLoaded', function() {
+      const streak = parseInt(localStorage.getItem('streak_count') || '0');
+      showStreak(streak);
+    });
+
+    // ====== Pomodoro ======
+    let timer;
+    let timeLeft = 25*60;
+    function updatePomodoro(){
+      const min = String(Math.floor(timeLeft/60)).padStart(2,'0');
+      const sec = String(timeLeft%60).padStart(2,'0');
+      document.getElementById('pomodoro').innerText = min+':'+sec;
+    }
+    function startPomodoro(){
+      if(timer) return;
+      timer = setInterval(()=>{
+        if(timeLeft>0){timeLeft--;updatePomodoro();}
+        else{clearInterval(timer);timer=null;alert('¡Tiempo terminado!');}
+      },1000);
+    }
+    function resetPomodoro(){
+      clearInterval(timer);timer=null;timeLeft=25*60;updatePomodoro();
+    }
+    updatePomodoro();
+
+    // ====== Calendario Mejorado ======
+    let currentMonth = (new Date()).getMonth();
+    let currentYear = (new Date()).getFullYear();
+
+    function getMonthName(month) {
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      return meses[month];
+    }
+
+    function daysInMonth(month, year) {
+      return new Date(year, month+1, 0).getDate();
+    }
+
+    function generateCalendar() {
+      const cal = document.getElementById('calendar');
+      cal.innerHTML = '';
+      const label = document.getElementById('calendarLabel');
+      if(label) {
+        label.style.display = 'inline-block';
+        label.textContent = getMonthName(currentMonth) + ' ' + currentYear;
+      }
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const totalDays = daysInMonth(currentMonth, currentYear);
+      // Ajustar para que el calendario empiece en lunes
+      let start = firstDay === 0 ? 6 : firstDay - 1;
+      for(let i=0;i<start;i++){
+        const empty = document.createElement('div');
+        empty.className = 'day';
+        empty.style.background = 'transparent';
+        empty.style.border = 'none';
+        cal.appendChild(empty);
+      }
+      // Cargar tareas del mes actual
+      const key = `calendar-tasks-${currentYear}-${currentMonth}`;
+      let monthTasks = {};
+      try { monthTasks = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+      for(let i=1;i<=totalDays;i++){
+        const day = document.createElement('div');
+        day.className = 'day';
+        day.innerHTML = '<div class="date">'+i+'</div>';
+        // Mostrar tareas si existen
+        if(monthTasks[i] && monthTasks[i].length > 0) {
+          const taskList = document.createElement('ul');
+          taskList.style.listStyle = 'none';
+          taskList.style.padding = '0';
+          taskList.style.margin = '6px 0 0 0';
+          monthTasks[i].forEach((task, idx) => {
+            const li = document.createElement('li');
+            li.style.fontSize = '13px';
+            li.style.background = '#ffe3ef';
+            li.style.color = '#d6336c';
+            li.style.borderRadius = '7px';
+            li.style.marginBottom = '3px';
+            li.style.padding = '2px 6px 2px 6px';
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.justifyContent = 'space-between';
+            li.innerHTML = `<span><span style='font-weight:bold;'>${task.title}</span>` + (task.hour ? ` <span style='font-size:12px;color:#6b7280;'>⏰ ${task.hour}</span>` : '') + `</span>`;
+            // Botón editar
+            const editBtn = document.createElement('button');
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Editar tarea';
+            editBtn.style.background = 'none';
+            editBtn.style.border = 'none';
+            editBtn.style.cursor = 'pointer';
+            editBtn.style.fontSize = '16px';
+            editBtn.style.marginRight = '6px';
+            editBtn.onclick = function(e) {
+              e.stopPropagation();
+              editCalendarTask(currentYear, currentMonth, i, idx, task);
+            };
+            li.appendChild(editBtn);
+            // Botón eliminar
+            const delBtn = document.createElement('button');
+            delBtn.innerHTML = '🗑️';
+            delBtn.title = 'Eliminar tarea';
+            delBtn.style.background = 'none';
+            delBtn.style.border = 'none';
+            delBtn.style.cursor = 'pointer';
+            delBtn.style.fontSize = '16px';
+            delBtn.onclick = function(e) {
+              e.stopPropagation();
+              deleteCalendarTask(currentYear, currentMonth, i, idx);
+            };
+            li.appendChild(delBtn);
+            taskList.appendChild(li);
+          });
+// Editar tarea del calendario
+function editCalendarTask(year, month, dayNum, taskIdx, task) {
+  if(document.getElementById('calendarTaskForm')) return;
+  const form = document.createElement('div');
+  form.id = 'calendarTaskForm';
+  form.style.position = 'fixed';
+  form.style.left = '50%';
+  form.style.top = '50%';
+  form.style.transform = 'translate(-50%,-50%)';
+  form.style.background = '#fff6fb';
+  form.style.border = '2px solid #d6336c';
+  form.style.boxShadow = '0 6px 18px #d6336c22';
+  form.style.padding = '22px 18px 18px 18px';
+  form.style.zIndex = 1000;
+  form.innerHTML = `
+    <div style='font-weight:bold;color:#d6336c;font-size:18px;margin-bottom:10px;'>Editar tarea para el ${dayNum} de ${getMonthName(month)} ${year}</div>
+    <input id='taskTitleInput' type='text' placeholder='Título de la tarea' value="${task.title.replace(/"/g, '&quot;')}" style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+    <input id='taskHourInput' type='time' value="${task.hour || ''}" style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+    <select id='taskAlarmInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+      <option value='10' ${task.alarm==10?'selected':''}>Alarma 10 minutos antes</option>
+      <option value='20' ${task.alarm==20?'selected':''}>Alarma 20 minutos antes</option>
+      <option value='180' ${task.alarm==180?'selected':''}>Alarma 3 horas antes</option>
+      <option value='0' ${!task.alarm?'selected':''}>Sin alarma</option>
+    </select>
+    <select id='taskSoundInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+      <option value='bell' ${task.sound==='bell'?'selected':''}>🔔 Campana</option>
+      <option value='ding' ${task.sound==='ding'?'selected':''}>🎵 Timbre</option>
+      <option value='soft' ${task.sound==='soft'?'selected':''}>🌸 Melodía suave</option>
+    </select>
+    <div style='font-size:13px;color:#6b7280;margin-bottom:10px;'>La hora de entrega, la alarma y el sonido son opcionales</div>
+    <button id='saveEditTaskBtn' class='btn-primary' style='width:100%;margin-bottom:6px;'>Guardar cambios</button>
+    <button id='cancelEditTaskBtn' class='btn-muted' style='width:100%;'>Cancelar</button>
+  `;
+  document.body.appendChild(form);
+  document.getElementById('taskTitleInput').focus();
+  document.getElementById('cancelEditTaskBtn').onclick = function() {
+    form.remove();
+  };
+  document.getElementById('saveEditTaskBtn').onclick = function() {
+    const title = document.getElementById('taskTitleInput').value.trim();
+    const hour = document.getElementById('taskHourInput').value;
+    const alarm = parseInt(document.getElementById('taskAlarmInput').value);
+    const sound = document.getElementById('taskSoundInput').value;
+    if(!title) { alert('Por favor, escribe un título para la tarea.'); return; }
+    const key = `calendar-tasks-${year}-${month}`;
+    let tasks = JSON.parse(localStorage.getItem(key) || '{}');
+    if(tasks[dayNum] && tasks[dayNum][taskIdx]) {
+      tasks[dayNum][taskIdx] = {title, hour, alarm, sound};
+      localStorage.setItem(key, JSON.stringify(tasks));
+      form.remove();
+      generateCalendar();
+    }
+  };
+}
+// Eliminar tarea del calendario
+function deleteCalendarTask(year, month, dayNum, taskIdx) {
+  const key = `calendar-tasks-${year}-${month}`;
+  let tasks = JSON.parse(localStorage.getItem(key) || '{}');
+  if(tasks[dayNum]) {
+    tasks[dayNum].splice(taskIdx, 1);
+    if(tasks[dayNum].length === 0) {
+      delete tasks[dayNum];
+    }
+    localStorage.setItem(key, JSON.stringify(tasks));
+    generateCalendar();
+  }
+}
+          day.appendChild(taskList);
+        }
+        day.onclick = function(e) {
+          e.stopPropagation();
+          showTaskForm(currentYear, currentMonth, i, day);
+        };
+        cal.appendChild(day);
+      }
+    }
+
+// Formulario flotante para agregar tarea a un día
+function showTaskForm(year, month, dayNum, dayElem) {
+      // Evitar múltiples formularios
+      if(document.getElementById('calendarTaskForm')) return;
+      const form = document.createElement('div');
+      form.id = 'calendarTaskForm';
+      form.style.position = 'fixed';
+      form.style.left = '50%';
+      form.style.top = '50%';
+      form.style.transform = 'translate(-50%,-50%)';
+      form.style.background = '#fff6fb';
+      form.style.border = '2px solid #d6336c';
+      form.style.boxShadow = '0 6px 18px #d6336c22';
+      form.style.padding = '22px 18px 18px 18px';
+      form.style.zIndex = 1000;
+      form.innerHTML = `
+        <div style='font-weight:bold;color:#d6336c;font-size:18px;margin-bottom:10px;'>Agregar tarea para el ${dayNum} de ${getMonthName(month)} ${year}</div>
+        <input id='taskTitleInput' type='text' placeholder='Título de la tarea' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+        <input id='taskHourInput' type='time' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+        <select id='taskAlarmInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+          <option value='10'>Alarma 10 minutos antes</option>
+          <option value='20'>Alarma 20 minutos antes</option>
+          <option value='180'>Alarma 3 horas antes</option>
+          <option value='0'>Sin alarma</option>
+        </select>
+        <select id='taskSoundInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+          <option value='bell'>🔔 Campana</option>
+          <option value='ding'>🎵 Timbre</option>
+          <option value='soft'>🌸 Melodía suave</option>
+        </select>
+        <div style='font-size:13px;color:#6b7280;margin-bottom:10px;'>La hora de entrega, la alarma y el sonido son opcionales</div>
+        <button id='saveTaskBtn' class='btn-primary' style='width:100%;margin-bottom:6px;'>Guardar tarea</button>
+        <button id='cancelTaskBtn' class='btn-muted' style='width:100%;'>Cancelar</button>
+      `;
+      document.body.appendChild(form);
+      document.getElementById('taskTitleInput').focus();
+      document.getElementById('cancelTaskBtn').onclick = function() {
+        form.remove();
+      };
+      document.getElementById('saveTaskBtn').onclick = function() {
+        const title = document.getElementById('taskTitleInput').value.trim();
+        const hour = document.getElementById('taskHourInput').value;
+        const alarm = parseInt(document.getElementById('taskAlarmInput').value);
+        const sound = document.getElementById('taskSoundInput').value;
+        if(!title) { alert('Por favor, escribe un título para la tarea.'); return; }
+        saveCalendarTask(year, month, dayNum, title, hour, alarm, sound);
+        form.remove();
+        generateCalendar();
+      };
+    }
+
+// Guardar tarea en localStorage
+function saveCalendarTask(year, month, dayNum, title, hour, alarm, sound) {
+  const key = `calendar-tasks-${year}-${month}`;
+  let tasks = JSON.parse(localStorage.getItem(key) || '{}');
+  if(!tasks[dayNum]) tasks[dayNum] = [];
+  tasks[dayNum].push({title, hour, alarm, sound});
+  localStorage.setItem(key, JSON.stringify(tasks));
+}
+
+// Sonidos de alarma
+const alarmSounds = {
+  bell: new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae3b2.mp3'), // Campana
+  ding: new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7b7b.mp3'), // Timbre
+  soft: new Audio('https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b7b7b7.mp3') // Melodía suave
+};
+
+
+document.getElementById('prevMonth').onclick = function() {
+  currentMonth--;
+  if(currentMonth<0){currentMonth=11;currentYear--;}
+  generateCalendar();
+};
+document.getElementById('nextMonth').onclick = function() {
+  currentMonth++;
+  if(currentMonth>11){currentMonth=0;currentYear++;}
+  generateCalendar();
+};
+document.getElementById('prevYear').onclick = function() {
+  currentYear--;
+  generateCalendar();
+};
+document.getElementById('nextYear').onclick = function() {
+  currentYear++;
+  generateCalendar();
+};
+
+// Estilo floral para los botones de navegación
+const styleFlower = document.createElement('style');
+styleFlower.innerHTML = `.btn-flower-nav { background: #fff6fb; color: #d6336c; border: 1.5px solid #d6336c; border-radius: 50%; padding: 7px 13px; font-size: 20px; margin: 0 2px; cursor: pointer; transition: background 0.2s; box-shadow: 0 2px 8px #d6336c22; } .btn-flower-nav:hover { background: #ffe3ef; }`;
+document.head.appendChild(styleFlower);
+
+generateCalendar();
+</script>
+</body>
+</html>
