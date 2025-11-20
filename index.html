@@ -1,0 +1,272 @@
+<!-- ...existing code... -->
+</div>
+
+<script>
+// ====== Mensaje informativo para tareas próximas a vencer ======
+function checkUpcomingTasks() {
+  const now = new Date();
+  let upcoming = [];
+  for(let m=0;m<12;m++){
+    const key = `calendar-tasks-${now.getFullYear()}-${m}`;
+    let monthTasks = {};
+    try { monthTasks = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
+    for(const day in monthTasks) {
+      monthTasks[day].forEach(task => {
+        if(task.hour && task.alarm && task.alarm > 0) {
+          const taskDate = new Date(now.getFullYear(), m, parseInt(day), ...task.hour.split(':'));
+          const diff = (taskDate - now) / (1000*60); // minutos
+          if(diff > 0 && diff <= task.alarm) {
+            upcoming.push({title: task.title, hour: task.hour, day, month: m});
+          }
+        }
+      });
+    }
+  }
+  showUpcomingTasksMessage(upcoming);
+}
+
+function showUpcomingTasksMessage(upcoming) {
+  let msg = document.getElementById('upcomingTasksMsg');
+  if(!msg) {
+    msg = document.createElement('div');
+    msg.id = 'upcomingTasksMsg';
+    msg.style.position = 'fixed';
+    msg.style.bottom = '10px';
+    msg.style.left = '50%';
+    msg.style.transform = 'translateX(-50%)';
+    msg.style.background = '#ffe3ef';
+    msg.style.border = '2px solid #d6336c';
+    msg.style.borderRadius = '12px';
+    msg.style.boxShadow = '0 2px 8px #d6336c22';
+    msg.style.padding = '16px 28px 16px 28px';
+    msg.style.zIndex = 1000;
+    msg.style.fontSize = '15px';
+    msg.style.color = '#d6336c';
+    msg.style.cursor = 'pointer';
+    msg.title = 'Haz clic para cerrar';
+    msg.onclick = function(){ msg.style.display = 'none'; };
+    document.body.appendChild(msg);
+  }
+  if(upcoming.length > 0) {
+    let html = '<div style="font-weight:bold;font-size:17px;margin-bottom:6px;">¡Tienes tareas próximas a vencer!</div>';
+    html += '<ul style="padding-left:18px;margin:0 0 8px 0;">';
+    upcoming.forEach(t => {
+      html += `<li style='margin-bottom:2px;'>📌 <b>${t.title}</b> — ${t.day+1} de ${getMonthName(t.month)}${t.hour ? `, <span style='color:#6b7280;'>⏰ ${t.hour}</span>` : ''}</li>`;
+    });
+    html += '</ul>';
+    html += '<div style="margin-top:8px;font-size:15px;color:#b8004b;font-weight:bold;">¡Tú puedes! Termina tu tarea a tiempo 🌟</div>';
+    html += '<div style="font-size:12px;color:#6b7280;margin-top:4px;">(Haz clic para cerrar este mensaje)</div>';
+    msg.innerHTML = html;
+    msg.style.display = 'block';
+  } else {
+    msg.style.display = 'none';
+  }
+}
+
+// Revisar cada minuto
+setInterval(checkUpcomingTasks, 60000);
+// Revisar al cargar
+checkUpcomingTasks();
+// ...el resto de tu código JS aquí...
+</script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>🌸 FlowerTime — Organiza tu tiempo</title>
+  <style>
+    :root{--bg:#fff6fb;--accent:#d6336c;--muted:#6b7280}
+    html,body{height:100%;margin:0;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(135deg,#fff7fb 0%, #f0fff6 100%);padding:24px}
+    .container{max-width:1100px;margin:0 auto}
+    h1{color:var(--accent);font-size:28px;margin:0 0 18px}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+    .card{background:white;border-radius:16px;padding:18px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .col-5{grid-column:span 5}
+    .col-4{grid-column:span 4}
+    .col-3{grid-column:span 3}
+    .col-7{grid-column:span 7}
+    .title-sm{font-weight:600;margin-bottom:8px}
+    button{cursor:pointer}
+    .btn-primary{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px}
+    .btn-muted{background:white;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px}
+    input[type="text"],input[type="date"],textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6e6e6;margin-bottom:8px}
+    .pomodoro-time{font-family:monospace;font-size:40px;text-align:center;margin:12px 0}
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .day{min-height:72px;padding:8px;border-radius:8px;border:1px solid #eee;background:#fff;cursor:pointer}
+    .date{font-size:12px;color:var(--muted);font-weight:600}
+    .task-line{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:#fbfbfc;margin-bottom:8px}
+    .muted{color:var(--muted);font-size:13px}
+    @media (max-width:900px){
+      .grid{grid-template-columns:1fr}
+      .col-5,.col-4,.col-3,.col-7{grid-column:1}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <h1 id="mainTitle">🌸 FlowerTime — Organiza tu tiempo</h1>
+      <button id="themeConfigBtn" title="Cambiar temática" style="background:none;border:none;font-size:26px;cursor:pointer;outline:none;">⚙️</button>
+    </div>
+    <div id="themeSelector" style="display:none;position:absolute;top:54px;right:32px;background:#fff6fb;border:2px solid #d6336c;border-radius:14px;box-shadow:0 4px 16px #d6336c22;padding:18px 22px;z-index:2000;">
+      <div style="font-weight:bold;color:#d6336c;font-size:17px;margin-bottom:10px;">Elige una temática:</div>
+      <button class="theme-btn" data-theme="flores" style="display:block;width:100%;margin-bottom:8px;font-size:17px;">🌸 Flores</button>
+      <button class="theme-btn" data-theme="mar" style="display:block;width:100%;margin-bottom:8px;font-size:17px;">🌊 Mar y océano</button>
+      <button class="theme-btn" data-theme="luna" style="display:block;width:100%;font-size:17px;">🌙 Lunas y constelaciones</button>
+    </div>
+  <script>
+  // Temáticas disponibles
+  const THEMES = {
+    flores: {
+      '--bg':'#fff6fb', '--accent':'#d6336c', '--muted':'#6b7280',
+      title:'🌸 FlowerTime — Organiza tu tiempo',
+      nav1:'🌻', nav2:'🌸',
+  bgGradient:'linear-gradient(135deg,#fff7fb 0%, #f0fff6 100%)',
+  bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🌸🌷🌺</text><text x="300" y="500" font-size="110" opacity=".10">🌻🌼</text></svg>')`,
+      streakBg:'#ffe3ef', streakBorder:'#d6336c', streakText:'#d6336c', monthColor:'#d6336c'
+    },
+    mar: {
+      '--bg':'#e0f7fa', '--accent':'#0077b6', '--muted':'#006080',
+      title:'🌊 OceanTime — Organiza tu tiempo',
+      nav1:'🐚', nav2:'🌊',
+  bgGradient:'linear-gradient(135deg,#e0f7fa 0%, #b2ebf2 100%)',
+  bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🐟🐠🐬</text><text x="300" y="500" font-size="110" opacity=".10">🐳🐋</text></svg>')`,
+      streakBg:'#b2ebf2', streakBorder:'#0077b6', streakText:'#0077b6', monthColor:'#0077b6'
+    },
+    luna: {
+      '--bg':'#f3f0ff', '--accent':'#5f3dc4', '--muted':'#6c757d',
+      title:'🌙 MoonTime — Organiza tu tiempo',
+      nav1:'🌠', nav2:'🌙',
+  bgGradient:'linear-gradient(135deg,#f3f0ff 0%, #dee2ff 100%)',
+  bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🌙✨</text><text x="300" y="500" font-size="110" opacity=".10">🌟🔭</text></svg>')`,
+      streakBg:'#e5dbff', streakBorder:'#5f3dc4', streakText:'#5f3dc4', monthColor:'#5f3dc4'
+    }
+  };
+
+  function applyTheme(themeKey) {
+    const theme = THEMES[themeKey] || THEMES.flores;
+    for(const v in theme) {
+      if(v.startsWith('--')) document.documentElement.style.setProperty(v, theme[v]);
+    }
+    document.body.style.background = theme.bgGradient;
+    document.body.style.backgroundImage = theme.bgImage;
+    document.body.style.backgroundRepeat = 'no-repeat';
+    document.body.style.backgroundPosition = 'bottom right';
+    document.body.style.backgroundSize = 'contain';
+    // Fondo decorativo también en el calendario
+    const calCard = document.querySelector('.card.col-12');
+    if(calCard) {
+      calCard.style.background = theme.bgGradient;
+      calCard.style.backgroundImage = theme.bgImage;
+      calCard.style.backgroundRepeat = 'no-repeat';
+      calCard.style.backgroundPosition = 'bottom right';
+      calCard.style.backgroundSize = 'contain';
+    }
+    document.getElementById('mainTitle').innerText = theme.title;
+    // Cambiar íconos de navegación
+    document.getElementById('prevYear').innerText = theme.nav1;
+    document.getElementById('nextYear').innerText = theme.nav1;
+    document.getElementById('prevMonth').innerText = theme.nav2;
+    document.getElementById('nextMonth').innerText = theme.nav2;
+    // Cambiar color del mes
+    const label = document.getElementById('calendarLabel');
+    if(label) label.style.color = theme.monthColor;
+    // Cambiar color de la racha
+    const streak = document.getElementById('streakContainer');
+    if(streak) {
+      const box = streak.querySelector('div');
+      if(box) {
+        box.style.background = theme.streakBg;
+        box.style.borderColor = theme.streakBorder;
+        box.style.color = theme.streakText;
+        // Cambiar color de los textos internos
+        const strongs = box.querySelectorAll('div');
+        strongs.forEach(el=>el.style.color=theme.streakText);
+      }
+    }
+    localStorage.setItem('theme', themeKey);
+  }
+
+  // Mostrar/ocultar selector
+  document.getElementById('themeConfigBtn').onclick = function() {
+    const sel = document.getElementById('themeSelector');
+    sel.style.display = sel.style.display==='block' ? 'none' : 'block';
+  };
+  // Cerrar selector al hacer clic fuera
+  document.addEventListener('click', function(e){
+    const sel = document.getElementById('themeSelector');
+    const btn = document.getElementById('themeConfigBtn');
+    if(sel.style.display==='block' && !sel.contains(e.target) && e.target!==btn) sel.style.display='none';
+  });
+  // Selección de tema
+  document.querySelectorAll('.theme-btn').forEach(btn=>{
+    btn.onclick = function(){ applyTheme(btn.dataset.theme); document.getElementById('themeSelector').style.display='none'; };
+  });
+  // Aplicar tema guardado
+  const savedTheme = localStorage.getItem('theme') || 'flores';
+  setTimeout(()=>applyTheme(savedTheme), 0);
+  </script>
+
+    <div class="grid">
+      <!-- Lista de tareas -->
+      <div class="card col-4">
+  <div id="streakContainer" style="margin-bottom:18px;"></div>
+        <div class="title-sm">✅ Lista de pendientes</div>
+        <input type="text" id="taskInput" placeholder="Nueva tarea..."/>
+        <button class="btn-primary" onclick="addTask()">Agregar</button>
+        <div id="taskList"></div>
+      </div>
+
+      <!-- Pomodoro -->
+      <div class="card col-4">
+        <div class="title-sm">⏳ Pomodoro</div>
+        <div id="pomodoro" class="pomodoro-time">25:00</div>
+        <button class="btn-primary" onclick="startPomodoro()">Iniciar</button>
+        <button class="btn-muted" onclick="resetPomodoro()">Reiniciar</button>
+      </div>
+
+      <!-- Asistente IA -->
+      <div class="card col-4">
+        <div class="title-sm">🤖 Asistente de estudio</div>
+        <textarea id="aiInput" placeholder="Hazme una pregunta sobre técnicas de estudio..."></textarea>
+        <button class="btn-primary" onclick="askAI()">Preguntar</button>
+        <div id="aiOutput" class="muted"></div>
+      </div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="card col-12" style="margin-top:20px">
+      <div class="title-sm">📅 Calendario</div>
+      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;gap:10px;">
+        <button id="prevYear" class="btn-flower-nav" title="Año anterior">🌻</button>
+        <button id="prevMonth" class="btn-flower-nav" title="Mes anterior">🌸</button>
+        <span id="calendarLabel" style="font-weight:bold;font-size:18px;color:#d6336c;min-width:120px;text-align:center;display:inline-block;flex:1;"></span>
+        <button id="nextMonth" class="btn-flower-nav" title="Mes siguiente">🌸</button>
+        <button id="nextYear" class="btn-flower-nav" title="Año siguiente">🌻</button>
+      </div>
+      <div class="calendar" id="calendar"></div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Lista de tareas ======
+    function addTask(){
+      const input = document.getElementById('taskInput');
+      const text = input.value.trim();
+      if(!text) return;
+      const taskList = document.getElementById('taskList');
+      const div = document.createElement('div');
+      div.className = 'task-line';
+      // Botón de cumplida (✅) y eliminar (❌)
+      div.innerHTML = '<span>'+text+'</span>'+
+        '<div>'+
+        '<button class="btn-streak" onclick="completeTask(this)" title="Marcar como cumplida">✅</button> '+
+        '<button onclick="this.parentNode.parentNode.remove()">❌</button>'+
+        '</div>';
+      taskList.appendChild(div);
+      input.value = '';
+    }
+
+... (file continues) ...
