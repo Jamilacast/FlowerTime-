@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -37,7 +37,10 @@
   <div class="container">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       <h1 id="mainTitle">🌸 FlowerTime — Organiza tu tiempo</h1>
-      <button id="themeConfigBtn" title="Cambiar temática" style="background:none;border:none;font-size:26px;cursor:pointer;outline:none;">⚙️</button>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button id="userBtn" title="Usuario" style="background:none;border:none;font-size:16px;cursor:pointer;outline:none;padding:6px 12px;border-radius:8px;background:#ffe3ef;color:#d6336c;font-weight:600;">👤</button>
+        <button id="themeConfigBtn" title="Cambiar temática" style="background:none;border:none;font-size:26px;cursor:pointer;outline:none;">⚙️</button>
+      </div>
     </div>
     <div id="themeSelector" style="display:none;position:absolute;top:54px;right:32px;background:#fff6fb;border:2px solid #d6336c;border-radius:14px;box-shadow:0 4px 16px #d6336c22;padding:18px 22px;z-index:2000;">
       <div style="font-weight:bold;color:#d6336c;font-size:17px;margin-bottom:10px;">Elige una temática:</div>
@@ -46,8 +49,119 @@
       <button class="theme-btn" data-theme="luna" style="display:block;width:100%;font-size:17px;">🌙 Lunas y constelaciones</button>
     </div>
   <script>
+  // ====== SISTEMA DE USUARIOS ======
+  class UserSystem {
+    static getCurrentUser() {
+      return localStorage.getItem('flowertime_currentUser');
+    }
+    
+    static setCurrentUser(username) {
+      localStorage.setItem('flowertime_currentUser', username);
+    }
+    
+    static getAllUsers() {
+      return JSON.parse(localStorage.getItem('flowertime_users') || '{}');
+    }
+    
+    static userExists(username) {
+      return this.getAllUsers().hasOwnProperty(username);
+    }
+    
+    static registerUser(username) {
+      const users = this.getAllUsers();
+      if(this.userExists(username)) return false;
+      users[username] = {
+        createdAt: new Date().toISOString(),
+        theme: 'flores'
+      };
+      localStorage.setItem('flowertime_users', JSON.stringify(users));
+      this.setCurrentUser(username);
+      return true;
+    }
+    
+    static loginUser(username) {
+      if(!this.userExists(username)) return false;
+      this.setCurrentUser(username);
+      return true;
+    }
+    
+    static logoutUser() {
+      localStorage.removeItem('flowertime_currentUser');
+    }
+    
+    static getUserKey(key) {
+      const user = this.getCurrentUser();
+      return user ? `user_${user}_${key}` : key;
+    }
+  }
+  
+  function showAuthForm() {
+    if(document.getElementById('authForm')) return;
+    
+    const form = document.createElement('div');
+    form.id = 'authForm';
+    form.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;';
+    
+    form.innerHTML = `
+      <div style="background:#fff6fb;border:2px solid #d6336c;border-radius:16px;padding:32px;max-width:400px;box-shadow:0 10px 40px rgba(0,0,0,0.2);">
+        <div style="font-weight:bold;color:#d6336c;font-size:24px;margin-bottom:20px;text-align:center;">🌸 FlowerTime</div>
+        <div style="margin-bottom:16px;">
+          <div style="font-weight:600;color:#d6336c;margin-bottom:8px;">Nombre de usuario</div>
+          <input id="authUsername" type="text" placeholder="Tu nombre..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #d6336c;box-sizing:border-box;font-size:14px;">
+          <div style="font-size:12px;color:#6b7280;margin-top:6px;">Ej: María, Juan, etc.</div>
+        </div>
+        <div style="margin-bottom:20px;display:flex;gap:8px;">
+          <button id="authRegister" class="btn-primary" style="flex:1;padding:10px;">Registrarse</button>
+          <button id="authLogin" class="btn-muted" style="flex:1;padding:10px;border:1px solid #d6336c;color:#d6336c;font-weight:600;">Entrar</button>
+        </div>
+        <div id="authMessage" style="font-size:12px;color:#d6336c;text-align:center;min-height:20px;"></div>
+      </div>
+    `;
+    
+    document.body.appendChild(form);
+    const input = document.getElementById('authUsername');
+    input.focus();
+    
+    document.getElementById('authRegister').onclick = function() {
+      const username = input.value.trim();
+      if(!username) { document.getElementById('authMessage').innerText = 'Por favor ingresa un nombre'; return; }
+      if(UserSystem.userExists(username)) {
+        document.getElementById('authMessage').innerText = 'Nombre en uso, por favor elige otro';
+        input.focus();
+        return;
+      }
+      UserSystem.registerUser(username);
+      form.remove();
+      location.reload();
+    };
+    
+    document.getElementById('authLogin').onclick = function() {
+      const username = input.value.trim();
+      if(!username) { document.getElementById('authMessage').innerText = 'Por favor ingresa un nombre'; return; }
+      if(!UserSystem.userExists(username)) {
+        document.getElementById('authMessage').innerText = 'Usuario no encontrado, regístrate'; 
+        input.focus();
+        return;
+      }
+      UserSystem.loginUser(username);
+      form.remove();
+      location.reload();
+    };
+    
+    input.onkeypress = function(e) {
+      if(e.key === 'Enter') document.getElementById('authRegister').click();
+    };
+  }
+  
+  function initAuth() {
+    if(!UserSystem.getCurrentUser()) {
+      showAuthForm();
+      return false;
+    }
+    return true;
+  }
+
   // Temáticas disponibles
-  document.addEventListener('DOMContentLoaded', function(){
   const THEMES = {
     flores: {
       '--bg':'#fff6fb', '--accent':'#d6336c', '--muted':'#6b7280',
@@ -55,7 +169,8 @@
       nav1:'🌻', nav2:'🌸',
   bgGradient:'linear-gradient(135deg,#fff7fb 0%, #f0fff6 100%)',
   bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🌸🌷🌺</text><text x="300" y="500" font-size="110" opacity=".10">🌻🌼</text></svg>')`,
-      streakBg:'#ffe3ef', streakBorder:'#d6336c', streakText:'#d6336c', monthColor:'#d6336c'
+      streakBg:'#ffe3ef', streakBorder:'#d6336c', streakText:'#d6336c', monthColor:'#d6336c',
+      pomodoroWorkIcon:'🌻', pomodoroBreakIcon:'🌸', pomodoroWorkGradient:'linear-gradient(135deg,#ffe3ef,#fff6fb)', pomodoroBreakGradient:'linear-gradient(135deg,#fff0f5,#ffe6f0)', pomodoroWorkColor:'#d6336c', pomodoroBreakColor:'#d6336c'
     },
     mar: {
       '--bg':'#e0f7fa', '--accent':'#0077b6', '--muted':'#006080',
@@ -63,7 +178,8 @@
       nav1:'🐚', nav2:'🌊',
   bgGradient:'linear-gradient(135deg,#e0f7fa 0%, #b2ebf2 100%)',
   bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🐟🐠🐬</text><text x="300" y="500" font-size="110" opacity=".10">🐳🐋</text></svg>')`,
-      streakBg:'#b2ebf2', streakBorder:'#0077b6', streakText:'#0077b6', monthColor:'#0077b6'
+      streakBg:'#b2ebf2', streakBorder:'#0077b6', streakText:'#0077b6', monthColor:'#0077b6',
+      pomodoroWorkIcon:'🐠', pomodoroBreakIcon:'🌊', pomodoroWorkGradient:'linear-gradient(135deg,#80deea,#b2ebf2)', pomodoroBreakGradient:'linear-gradient(135deg,#b3e5fc,#e0f2f1)', pomodoroWorkColor:'#0077b6', pomodoroBreakColor:'#0077b6'
     },
     luna: {
       '--bg':'#f3f0ff', '--accent':'#5f3dc4', '--muted':'#6c757d',
@@ -71,9 +187,12 @@
       nav1:'🌠', nav2:'🌙',
   bgGradient:'linear-gradient(135deg,#f3f0ff 0%, #dee2ff 100%)',
   bgImage: `url('data:image/svg+xml;utf8,<svg width="600" height="600" xmlns="http://www.w3.org/2000/svg"><text x="40" y="120" font-size="90" opacity=".13">🌙✨</text><text x="300" y="500" font-size="110" opacity=".10">🌟🔭</text></svg>')`,
-      streakBg:'#e5dbff', streakBorder:'#5f3dc4', streakText:'#5f3dc4', monthColor:'#5f3dc4'
+      streakBg:'#e5dbff', streakBorder:'#5f3dc4', streakText:'#5f3dc4', monthColor:'#5f3dc4',
+      pomodoroWorkIcon:'⭐', pomodoroBreakIcon:'🌙', pomodoroWorkGradient:'linear-gradient(135deg,#ce93d8,#e1bee7)', pomodoroBreakGradient:'linear-gradient(135deg,#e1bee7,#f3e5f5)', pomodoroWorkColor:'#5f3dc4', pomodoroBreakColor:'#5f3dc4'
     }
   };
+
+  document.addEventListener('DOMContentLoaded', function(){
 
   function applyTheme(themeKey) {
     const theme = THEMES[themeKey] || THEMES.flores;
@@ -116,7 +235,9 @@
         strongs.forEach(el=>el.style.color=theme.streakText);
       }
     }
-    localStorage.setItem('theme', themeKey);
+    // Actualizar Pomodoro con el nuevo tema
+    updatePomodoroTheme();
+    localStorage.setItem(UserSystem.getUserKey('theme'), themeKey);
   }
 
   // Mostrar/ocultar selector
@@ -125,18 +246,66 @@
     const sel = document.getElementById('themeSelector');
     sel.style.display = sel.style.display==='block' ? 'none' : 'block';
   };
+  
+  // Botón de usuario
+  document.getElementById('userBtn').onclick = function(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('userMenu');
+    // Toggle simple: si existe lo removemos, si no, lo creamos
+    if(menu) {
+      menu.remove();
+    } else {
+      showUserMenu();
+    }
+  };
+  
+  function showUserMenu() {
+    let menu = document.getElementById('userMenu');
+    if(menu) menu.remove();
+    
+    const user = UserSystem.getCurrentUser();
+    menu = document.createElement('div');
+    menu.id = 'userMenu';
+    menu.style.cssText = 'position:absolute;top:54px;right:180px;background:#fff6fb;border:2px solid #d6336c;border-radius:12px;box-shadow:0 4px 16px #d6336c22;padding:14px;z-index:2000;min-width:200px;';
+    menu.innerHTML = `
+      <div style="font-weight:600;color:#d6336c;font-size:14px;margin-bottom:10px;text-align:center;padding:8px;background:#ffe3ef;border-radius:8px;">👤 ${user}</div>
+      <button id="logoutBtn" style="display:block;width:100%;padding:10px;margin-top:8px;background:#d6336c;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;">Cerrar sesión</button>
+    `;
+    document.querySelector('[style*="display:flex"][style*="align-items:center"]').appendChild(menu);
+    menu.style.display = 'block';
+    // Asignar el handler programáticamente (evita problemas con scope de funciones inline)
+    const lb = menu.querySelector('#logoutBtn');
+    if(lb) lb.onclick = logoutUser;
+  }
+  
+  function logoutUser() {
+    if(confirm('¿Estás seguro que quieres cerrar sesión?')) {
+      UserSystem.logoutUser();
+      location.reload();
+    }
+  }
+  // Exponer globalmente por si hay referencias inline
+  window.logoutUser = logoutUser;
+  
   // Cerrar selector al hacer clic fuera
   document.addEventListener('click', function(e){
     const sel = document.getElementById('themeSelector');
+    const menu = document.getElementById('userMenu');
     const btn = document.getElementById('themeConfigBtn');
-    if(sel.style.display==='block' && !sel.contains(e.target) && e.target!==btn) sel.style.display='none';
+    const userBtn = document.getElementById('userBtn');
+    const moodToggle = document.getElementById('moodToggleBtn');
+    const moodPicker = document.getElementById('moodPicker');
+
+    if(sel && sel.style.display==='block' && !sel.contains(e.target) && e.target!==btn) sel.style.display='none';
+    if(menu && !menu.contains(e.target) && e.target!==userBtn && e.target !== userBtn.parentElement) menu.remove();
+    if(moodPicker && moodPicker.style.display==='block' && !moodPicker.contains(e.target) && e.target!==moodToggle) moodPicker.style.display='none';
   });
   // Selección de tema
   document.querySelectorAll('.theme-btn').forEach(btn=>{
     btn.onclick = function(e){ e.stopPropagation(); applyTheme(btn.dataset.theme); document.getElementById('themeSelector').style.display='none'; };
   });
   // Aplicar tema guardado
-  const savedTheme = localStorage.getItem('theme') || 'flores';
+  const savedTheme = localStorage.getItem(UserSystem.getUserKey('theme')) || 'flores';
   setTimeout(()=>applyTheme(savedTheme), 0);
   });
   </script>
@@ -156,9 +325,52 @@
       <!-- Pomodoro -->
       <div class="card col-4">
         <div class="title-sm">⏳ Pomodoro</div>
-        <div id="pomodoro" class="pomodoro-time">25:00</div>
-        <button class="btn-primary" onclick="startPomodoro()">Iniciar</button>
-        <button class="btn-muted" onclick="resetPomodoro()">Reiniciar</button>
+        <div id="currentTime" style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:8px;font-weight:600;">--:--</div>
+        <div id="pomodoroCircle" style="width:140px;height:140px;margin:16px auto;border-radius:50%;background:transparent;border:3px solid #d6336c;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 4px 16px #d6336c22;transition:all 0.3s ease;">
+          <div style="text-align:center;width:100%;">
+              <div id="pomodoro" class="pomodoro-time" style="font-size:28px;margin:0;font-weight:bold;">25:00</div>
+            <div id="pomodoroPhase" style="font-size:11px;color:#d6336c;font-weight:600;margin-top:4px;letter-spacing:0.5px;">TRABAJO</div>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;display:flex;gap:6px;align-items:center;justify-content:center;">
+          <button class="btn-primary" onclick="startPomodoro()" style="padding:6px 12px;font-size:13px;flex:1;">Iniciar</button>
+          <button class="btn-muted" onclick="pausePomodoro()" style="padding:6px 12px;font-size:13px;flex:1;display:none;" id="pauseBtn">Pausar</button>
+          <button class="btn-muted" onclick="resetPomodoro()" style="padding:6px 12px;font-size:13px;flex:1;">Reiniciar</button>
+        </div>
+        <button onclick="showPomodoroSettings()" style="background:#f0f0f0;border:1px solid #ddd;padding:6px 12px;border-radius:8px;width:100%;font-size:12px;cursor:pointer;color:#666;font-weight:600;">⚙️ Personalizar tiempo</button>
+        <!-- Selector de estado de ánimo (oculto por defecto) -->
+        <!-- Selector de estado de ánimo (oculto por defecto) -->
+        <div style="margin-top:10px;">
+          <button id="moodToggleBtn" style="width:100%;background:#fff;border:1px solid #e6e6e6;padding:8px;border-radius:8px;cursor:pointer;font-size:14px;">🙂 ¿Cómo te sientes? (Seleccionar)</button>
+          <div id="moodPicker" style="display:none;margin-top:8px;padding:8px 6px;border-radius:8px;border:1px solid #e6e6e6;background:#fbfbfc;">
+          <div style="font-size:13px;color:#6b7280;margin-bottom:6px;font-weight:600;text-align:center;">¿Cómo te sientes ahora?</div>
+          <div id="moodButtons" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+            <button class="mood-btn" data-mood="very_happy" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😄</button>
+            <button class="mood-btn" data-mood="happy" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">🙂</button>
+            <button class="mood-btn" data-mood="calm" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😌</button>
+            <button class="mood-btn" data-mood="meh" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😕</button>
+            <button class="mood-btn" data-mood="sad" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😔</button>
+            <button class="mood-btn" data-mood="love" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😍</button>
+            <button class="mood-btn" data-mood="tired" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😴</button>
+            <button class="mood-btn" data-mood="angry" style="font-size:20px;padding:6px 8px;border-radius:8px;background:white;border:1px solid #eee;">😤</button>
+          </div>
+          <div id="moodSelected" style="margin-top:8px;text-align:center;color:#6b7280;font-size:13px;"></div>
+          </div>
+        </div>
+        <div id="pomodoroSettings" style="display:none;margin-top:10px;padding:10px;background:#fbfbfc;border-radius:8px;border:1px solid #e6e6e6;">
+          <div style="margin-bottom:8px;">
+            <label style="font-size:12px;font-weight:600;color:#666;">Trabajo (minutos)</label>
+            <input id="workMinutes" type="number" min="1" max="60" value="25" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e6e6e6;box-sizing:border-box;">
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:12px;font-weight:600;color:#666;">Descanso (minutos)</label>
+            <input id="breakMinutes" type="number" min="1" max="30" value="5" style="width:100%;padding:6px;border-radius:6px;border:1px solid #e6e6e6;box-sizing:border-box;">
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="savePomodoroSettings()" class="btn-primary" style="flex:1;font-size:12px;padding:6px;">Guardar</button>
+            <button onclick="closePomodoroSettings()" class="btn-muted" style="flex:1;font-size:12px;padding:6px;border:1px solid #ddd;">Cancelar</button>
+          </div>
+        </div>
       </div>
 
       <!-- Reto flor -->
@@ -169,21 +381,20 @@
         <button class="btn-primary" onclick="addChallenge()">Añadir reto</button>
         <div id="challengeList" style="margin-top:10px;"></div>
       </div>
-    </div>
 
-    <!-- Calendario -->
-    <div class="card col-12" style="margin-top:20px">
-      <div class="title-sm">📅 Calendario</div>
-      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;gap:10px;">
-        <button id="prevYear" class="btn-flower-nav" title="Año anterior">🌻</button>
-        <button id="prevMonth" class="btn-flower-nav" title="Mes anterior">🌸</button>
-        <span id="calendarLabel" style="font-weight:bold;font-size:18px;color:#d6336c;min-width:120px;text-align:center;display:inline-block;flex:1;"></span>
-        <button id="nextMonth" class="btn-flower-nav" title="Mes siguiente">🌸</button>
-        <button id="nextYear" class="btn-flower-nav" title="Año siguiente">🌻</button>
+      <!-- Calendario -->
+      <div class="card col-12" style="margin-top:20px;grid-column:span 12;">
+        <div class="title-sm">📅 Calendario</div>
+        <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;gap:10px;">
+          <button id="prevYear" class="btn-flower-nav" title="Año anterior">🌻</button>
+          <button id="prevMonth" class="btn-flower-nav" title="Mes anterior">🌸</button>
+          <span id="calendarLabel" style="font-weight:bold;font-size:18px;color:#d6336c;min-width:120px;text-align:center;display:inline-block;flex:1;"></span>
+          <button id="nextMonth" class="btn-flower-nav" title="Mes siguiente">🌸</button>
+          <button id="nextYear" class="btn-flower-nav" title="Año siguiente">🌻</button>
+        </div>
+        <div class="calendar" id="calendar"></div>
       </div>
-      <div class="calendar" id="calendar"></div>
     </div>
-  </div>
 
   <script>
     // ====== Lista de tareas ======
@@ -202,17 +413,35 @@
         '</div>';
       taskList.appendChild(div);
       input.value = '';
+      // if the streak was already registered today, disable the new task's streak button
+      checkStreakButtons();
     }
     // Marcar tarea como cumplida y actualizar racha
     function completeTask(btn) {
       // Solo permitir una vez por día
-      if (localStorage.getItem('streak_lastDay') === getTodayStr()) {
+      const key = UserSystem.getUserKey('streak_lastDay');
+      const today = getTodayStr();
+      if (localStorage.getItem(key) === today) {
+        // Ya registrado: desactivar todos los botones para evitar intentos adicionales (sin cambiar su texto)
+        document.querySelectorAll('.btn-streak').forEach(b => { b.disabled = true; });
         alert('¡Ya registraste tu tarea cumplida hoy!');
         return;
       }
+      // Marcar solo el botón actual y actualizar la racha una sola vez
       btn.disabled = true;
       btn.innerText = '🎉';
       updateStreak();
+      // Tras actualizar la racha, desactivar todos los botones para que nadie más pueda registrar hoy
+      document.querySelectorAll('.btn-streak').forEach(b => { b.disabled = true; });
+    }
+
+    // Comprueba si la racha ya está registrada hoy y desactiva los botones de racha sin alterar su texto
+    function checkStreakButtons(){
+      const key = UserSystem.getUserKey('streak_lastDay');
+      const today = getTodayStr();
+      if(localStorage.getItem(key) === today){
+        document.querySelectorAll('.btn-streak').forEach(b => { b.disabled = true; });
+      }
     }
     // ====== Racha de tareas ======
     function getTodayStr() {
@@ -222,8 +451,8 @@
 
     function updateStreak() {
       const today = getTodayStr();
-      let lastDay = localStorage.getItem('streak_lastDay');
-      let streak = parseInt(localStorage.getItem('streak_count') || '0');
+      let lastDay = localStorage.getItem(UserSystem.getUserKey('streak_lastDay'));
+      let streak = parseInt(localStorage.getItem(UserSystem.getUserKey('streak_count')) || '0');
       if (lastDay === today) {
         // Ya se registró hoy, no aumentar racha
         showStreak(streak);
@@ -241,28 +470,153 @@
       } else {
         streak = 1;
       }
-      localStorage.setItem('streak_lastDay', today);
-      localStorage.setItem('streak_count', streak);
+      localStorage.setItem(UserSystem.getUserKey('streak_lastDay'), today);
+      localStorage.setItem(UserSystem.getUserKey('streak_count'), streak);
       showStreak(streak);
     }
 
     function showStreak(streak) {
-      const theme = THEMES[localStorage.getItem('theme') || 'flores'];
+      const theme = THEMES[localStorage.getItem(UserSystem.getUserKey('theme')) || 'flores'];
       const el = document.getElementById('streakContainer');
+      const mood = localStorage.getItem(UserSystem.getUserKey('mood')) || 'neutral';
+      const phrase = getEncouragingPhrase(mood);
       el.innerHTML = `
-        <div style="background: ${theme.streakBg}; border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px ${theme.streakBorder}22; text-align: center; border: 2px solid ${theme.streakBorder}; max-width: 300px; margin: 0 auto 10px auto; color:${theme.streakText};">
+        <div style="background: ${theme.streakBg}; border-radius: 14px; padding: 18px; box-shadow: 0 2px 8px ${theme.streakBorder}22; text-align: center; border: 2px solid ${theme.streakBorder}; max-width: 320px; margin: 0 auto 10px auto; color:${theme.streakText};">
           <div style="font-size: 18px; font-weight: bold; color: ${theme.streakText}; margin-bottom: 6px;">Racha</div>
           <div style="font-size: 32px; font-weight: bold; color: ${theme.streakText};">🔥 ${streak} día${streak === 1 ? '' : 's'}</div>
-          <div style="color: #6b7280; font-size: 15px; margin-top: 8px;">¡Sigue así! Cada día cuenta para tu progreso 🌱</div>
+          <div id="streakPhrase" style="color:${theme.streakText}; font-size:14px; margin-top:10px; font-weight:600;">${phrase}</div>
         </div>
       `;
     }
+
+    // Generador de frases de ánimo combinatorio (muchas combinaciones posibles)
+    function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    const phraseParts = {
+      very_happy: {
+        open: ['¡Excelente!','¡Increíble!','¡Brillante!','¡Maravilloso!','¡Fantástico!'],
+        mid: ['tu energía contagia.','estás en racha.','sigue así, campeón.','todo fluye a tu favor.','tu esfuerzo brilla.'],
+        end: ['🌟','💫','🎉','🌈','🏆']
+      },
+      happy: {
+        open: ['¡Genial!','¡Buen trabajo!','¡Muy bien!','¡Perfecto!','¡Bien hecho!'],
+        mid: ['avanzas con paso firme.','cada paso cuenta.','tu constancia vale oro.','sigue construyendo tus hábitos.','estás haciendo progreso.'],
+        end: ['🙂','🌼','👏','✨','🌟']
+      },
+      calm: {
+        open: ['Respira hondo.','Tranquilo/a, todo bien.','Pausa y sonríe.','Serenidad ante todo.'],
+        mid: ['tu ritmo es sano.','has hecho lo importante hoy.','pequeños pasos, gran cambio.','cuida tu calma y sigue.'],
+        end: ['🌿','☁️','🌙','🍃']
+      },
+      meh: {
+        open: ['No pasa nada.','Está bien sentirlo.','Un paso a la vez.'],
+        mid: ['mañana será mejor.','hoy diste lo que pudiste.','permítete descansar si hace falta.'],
+        end: ['🌤️','🤍','🌱']
+      },
+      sad: {
+        open: ['Lo siento.','Te acompaño.','Aquí estás haciendo lo mejor.'],
+        mid: ['tu valor está intacto.','cada intento suma.','no estás solo/a en esto.'],
+        end: ['💜','🤗','🌷']
+      },
+      love: {
+        open: ['Qué bonito.','¡Genial esa energía!','Amor propio ante todo.'],
+        mid: ['tu entusiasmo inspira.','sigue cuidándote así.','ese ánimo te empuja adelante.'],
+        end: ['❤️','🌹','✨']
+      },
+      tired: {
+        open: ['Tómate un respiro.','Descansa un poco.','Recarga pilas.'],
+        mid: ['has trabajado duro hoy.','permítete una pausa breve.','mañana volverás con fuerza.'],
+        end: ['😴','☕','🛌']
+      },
+      angry: {
+        open: ['Lo entiendo.','Respira.','Canaliza esa fuerza.'],
+        mid: ['convierte la rabia en impulso.','un paso calmado cambia la dirección.','haz algo que te relaje ahora.'],
+        end: ['🔥','🧘','⚡']
+      },
+      neutral: {
+        open: ['¡Buen día!','Sigue adelante.','Hoy es una nueva oportunidad.'],
+        mid: ['pequeños avances cuentan.','cada día suma.','mantén tu constancia.'],
+        end: ['🙂','🌟','💪']
+      }
+    };
+
+    function getEncouragingPhrase(mood){
+      const p = phraseParts[mood] || phraseParts['neutral'];
+      // Evitar repetir la misma frase (guardada por usuario)
+      const lastKey = UserSystem.getUserKey('last_phrase');
+      let attempt = 0;
+      let phrase = '';
+      do {
+        phrase = pickRandom(p.open) + ' ' + pickRandom(p.mid) + ' ' + pickRandom(p.end);
+        attempt++;
+      } while(attempt < 8 && localStorage.getItem(lastKey) === phrase);
+      try{ localStorage.setItem(lastKey, phrase); }catch(e){}
+      return phrase;
+    }
+
+    function renderMoodPicker(){
+      const container = document.getElementById('moodPicker');
+      if(!container) return;
+      const saved = localStorage.getItem(UserSystem.getUserKey('mood'));
+      const selected = document.getElementById('moodSelected');
+      if(saved){
+        selected.innerText = 'Seleccionado: ' + (function(m){
+          const map = {very_happy:'😄',happy:'🙂',calm:'😌',meh:'😕',sad:'😔',love:'😍',tired:'😴',angry:'😤'};
+          return map[m]||'🙂';
+        })(saved) + ' (Cambiar)';
+      } else {
+        selected.innerText = 'Elige un emoji para recibir frases de ánimo personalizadas';
+      }
+      // asignar handlers a botones
+      document.querySelectorAll('#moodPicker .mood-btn').forEach(b=>{
+        b.onclick = function(){
+          const m = b.dataset.mood;
+          localStorage.setItem(UserSystem.getUserKey('mood'), m);
+          renderMoodPicker();
+          // actualizar racha con nueva frase
+          const streakCount = parseInt(localStorage.getItem(UserSystem.getUserKey('streak_count')) || '0');
+          showStreak(streakCount);
+          // cerrar picker después de seleccionar
+          const picker = document.getElementById('moodPicker');
+          if(picker) picker.style.display = 'none';
+        };
+      });
+      // toggle button para mostrar/ocultar el picker
+      const toggle = document.getElementById('moodToggleBtn');
+      if(toggle) toggle.onclick = function(e){ e.stopPropagation(); const p = document.getElementById('moodPicker'); if(p) p.style.display = (p.style.display==='block') ? 'none' : 'block'; };
+    }
+
+    // Probar sonido y notificación del sistema
+    function requestNotificationPermission(){
+      if(!('Notification' in window)) return Promise.resolve('denied');
+      return Notification.requestPermission();
+    }
+
+    function showSystemNotification(title, body){
+      try{
+        if('Notification' in window && Notification.permission === 'granted'){
+          new Notification(title, {body: body});
+        }
+      }catch(e){}
+    }
+
+    function testSoundAndNotify(){
+      // reproducir sonido
+      try{ playAlarmSound('bell'); }catch(e){}
+      // notificación del sistema
+      if('Notification' in window){
+        if(Notification.permission === 'granted'){
+          showSystemNotification('Alarma de prueba', 'Este es un sonido de prueba.');
+        } else if(Notification.permission !== 'denied'){
+          requestNotificationPermission().then(p=>{ if(p === 'granted') showSystemNotification('Alarma de prueba','Este es un sonido de prueba.'); });
+        }
+      }
+    }
     // ====== Reto flor (objetivos y metas) ======
     function getChallenges(){
-      return JSON.parse(localStorage.getItem('flower_challenges') || '[]');
+      return JSON.parse(localStorage.getItem(UserSystem.getUserKey('flower_challenges')) || '[]');
     }
     function saveChallenges(arr){
-      localStorage.setItem('flower_challenges', JSON.stringify(arr));
+      localStorage.setItem(UserSystem.getUserKey('flower_challenges'), JSON.stringify(arr));
     }
     function addChallenge(){
       const title = document.getElementById('challengeInput').value.trim();
@@ -326,92 +680,182 @@
   style.innerHTML = `.btn-streak { background: #fff6fb; color: #d6336c; border: 1px solid #d6336c; border-radius: 8px; padding: 4px 10px; margin-right: 4px; font-size: 18px; cursor: pointer; transition: background 0.2s; } .btn-streak:disabled { background: #ffe3ef; color: #aaa; border-color: #ffe3ef; cursor: default; }`;
   document.head.appendChild(style);
 
+    // ====== Pomodoro Mejorado ======
+    let pomodoroTimer;
+    let pomodoroTimeLeft = 25*60;
+    let workDuration = 25*60;
+    let breakDuration = 5*60;
+    let isWorkPhase = true;
+    let isPaused = false;
+    
+    // Reloj en tiempo real
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2,'0');
+      const minutes = String(now.getMinutes()).padStart(2,'0');
+      document.getElementById('currentTime').innerText = hours + ':' + minutes;
+    }
+    
+    function updatePomodoroTheme() {
+      const currentTheme = localStorage.getItem(UserSystem.getUserKey('theme')) || 'flores';
+      const theme = THEMES[currentTheme] || THEMES.flores;
+      const circle = document.getElementById('pomodoroCircle');
+      const phase = document.getElementById('pomodoroPhase');
+
+      if(!circle || !phase) return;
+
+      if(isWorkPhase) {
+        // Usar fondo transparente en el centro y borde/sombra neutros (sin color temático)
+        circle.style.background = 'transparent';
+        circle.style.borderColor = 'transparent';
+        circle.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)';
+        phase.style.color = theme.pomodoroWorkColor;
+      } else {
+        circle.style.background = 'transparent';
+        circle.style.borderColor = 'transparent';
+        circle.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)';
+        phase.style.color = theme.pomodoroBreakColor;
+      }
+    }
+    
+    function updatePomodoro(){
+      const min = String(Math.floor(pomodoroTimeLeft/60)).padStart(2,'0');
+      const sec = String(pomodoroTimeLeft%60).padStart(2,'0');
+      document.getElementById('pomodoro').innerText = min+':'+sec;
+      document.getElementById('pomodoroPhase').innerText = isWorkPhase ? 'TRABAJO' : 'DESCANSO';
+      updatePomodoroTheme();
+    }
+    
+    function loadPomodoroSettings() {
+      const work = parseInt(localStorage.getItem(UserSystem.getUserKey('pomodoro_work')) || '25');
+      const breakTime = parseInt(localStorage.getItem(UserSystem.getUserKey('pomodoro_break')) || '5');
+      workDuration = work * 60;
+      breakDuration = breakTime * 60;
+      if(!pomodoroTimer) {
+        pomodoroTimeLeft = workDuration;
+        isWorkPhase = true;
+      }
+      const workInput = document.getElementById('workMinutes');
+      const breakInput = document.getElementById('breakMinutes');
+      if(workInput) workInput.value = work;
+      if(breakInput) breakInput.value = breakTime;
+      updatePomodoro();
+    }
+    
+    // Definiciones de control del Pomodoro (implementadas más abajo)
+    
+    function showPomodoroSettings(){
+      loadPomodoroSettings();
+      document.getElementById('pomodoroSettings').style.display = 'block';
+    }
+    
+    function closePomodoroSettings(){
+      document.getElementById('pomodoroSettings').style.display = 'none';
+    }
+    
+    function savePomodoroSettings(){
+      const workInput = document.getElementById('workMinutes');
+      const breakInput = document.getElementById('breakMinutes');
+      
+      if(!workInput || !breakInput) { alert('Error: elementos no encontrados'); return; }
+      
+      const work = parseInt(workInput.value) || 25;
+      const breakTime = parseInt(breakInput.value) || 5;
+      
+      if(!work || work < 1 || work > 60) { alert('Trabajo: mínimo 1, máximo 60 minutos'); return; }
+      if(!breakTime || breakTime < 1 || breakTime > 30) { alert('Descanso: mínimo 1, máximo 30 minutos'); return; }
+      
+      localStorage.setItem(UserSystem.getUserKey('pomodoro_work'), work);
+      localStorage.setItem(UserSystem.getUserKey('pomodoro_break'), breakTime);
+      
+      resetPomodoro();
+      loadPomodoroSettings();
+      closePomodoroSettings();
+      alert('⏱️ Configuración guardada: ' + work + 'min trabajo / ' + breakTime + 'min descanso');
+    }
+    
+    function playNotificationSound(){
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.value = 800;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch(e) {}
+    }
+    
+    // Animaciones de objetos cayendo removidas (desactivadas)
+
     // Mostrar racha y retos al cargar
     document.addEventListener('DOMContentLoaded', function() {
-      const streak = parseInt(localStorage.getItem('streak_count') || '0');
+      if(!initAuth()) return; // Verificar usuario
+      const streak = parseInt(localStorage.getItem(UserSystem.getUserKey('streak_count')) || '0');
       showStreak(streak);
       try{ renderChallenges(); } catch(e){}
+      updateClock();
+      setInterval(updateClock, 1000);
+      loadPomodoroSettings();
+      // Render mood picker UI
+      try{ renderMoodPicker(); } catch(e){}
+      // Nota: los botones de prueba de sonido ahora están junto al selector de sonido en los formularios de tarea
+      // Iniciar el monitor de alarmas de tareas
+      try{ initTaskAlarms(); } catch(e){}
+      // Desactivar botones de racha si ya se registró hoy
+      checkStreakButtons();
     });
-
-    // ====== Pomodoro ======
-    let timer;
-    let timeLeft = 25*60;
-    function updatePomodoro(){
-      const min = String(Math.floor(timeLeft/60)).padStart(2,'0');
-      const sec = String(timeLeft%60).padStart(2,'0');
-      document.getElementById('pomodoro').innerText = min+':'+sec;
-    }
-    function startPomodoro(){
-      if(timer) return;
-      timer = setInterval(()=>{
-        if(timeLeft>0){timeLeft--;updatePomodoro();}
-        else{clearInterval(timer);timer=null;alert('¡Tiempo terminado!');}
-      },1000);
-    }
-    function resetPomodoro(){
-      clearInterval(timer);timer=null;timeLeft=25*60;updatePomodoro();
-    }
-    updatePomodoro();
 
     // ====== Calendario Mejorado ======
     let currentMonth = (new Date()).getMonth();
     let currentYear = (new Date()).getFullYear();
-
-    function getMonthName(month) {
-      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-      return meses[month];
-    }
-
-    function daysInMonth(month, year) {
-      return new Date(year, month+1, 0).getDate();
+    function getMonthName(m) {
+      const names = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      return names[m] || '';
     }
 
     function generateCalendar() {
       const cal = document.getElementById('calendar');
+      if(!cal) return;
       cal.innerHTML = '';
-      const label = document.getElementById('calendarLabel');
-      if(label) {
-        label.style.display = 'inline-block';
-        label.textContent = getMonthName(currentMonth) + ' ' + currentYear;
-      }
       const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-      const totalDays = daysInMonth(currentMonth, currentYear);
-      // Ajustar para que el calendario empiece en lunes
-      let start = firstDay === 0 ? 6 : firstDay - 1;
-      for(let i=0;i<start;i++){
-        const empty = document.createElement('div');
-        empty.className = 'day';
-        empty.style.background = 'transparent';
-        empty.style.border = 'none';
-        cal.appendChild(empty);
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const label = document.getElementById('calendarLabel');
+      if(label) label.innerText = getMonthName(currentMonth) + ' ' + currentYear;
+
+      // Blank slots for first week
+      for(let i=0;i<firstDay;i++){
+        const empty = document.createElement('div'); empty.className = 'day'; empty.style.visibility = 'hidden'; cal.appendChild(empty);
       }
-      // Cargar tareas del mes actual
-      const key = `calendar-tasks-${currentYear}-${currentMonth}`;
-      let monthTasks = {};
-      try { monthTasks = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) {}
-      for(let i=1;i<=totalDays;i++){
-        const day = document.createElement('div');
-        day.className = 'day';
-        day.innerHTML = '<div class="date">'+i+'</div>';
-        // Mostrar tareas si existen
-        if(monthTasks[i] && monthTasks[i].length > 0) {
-          const taskList = document.createElement('ul');
-          taskList.style.listStyle = 'none';
-          taskList.style.padding = '0';
-          taskList.style.margin = '6px 0 0 0';
-          monthTasks[i].forEach((task, idx) => {
-            const li = document.createElement('li');
-            li.style.fontSize = '13px';
-            li.style.background = '#ffe3ef';
-            li.style.color = '#d6336c';
+
+      for(let day=1; day<=daysInMonth; day++){
+        const dayDiv = document.createElement('div'); dayDiv.className = 'day';
+        const dateSpan = document.createElement('div'); dateSpan.className = 'date'; dateSpan.innerText = day;
+        dayDiv.appendChild(dateSpan);
+
+        // Load tasks for this day
+        const key = UserSystem.getUserKey(`calendar-tasks-${currentYear}-${currentMonth}`);
+        const tasks = JSON.parse(localStorage.getItem(key) || '{}');
+        if(tasks[day]){
+          const taskList = document.createElement('div');
+          tasks[day].forEach((task, idx) => {
+            const li = document.createElement('div');
+            li.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#d6336c';
             li.style.borderRadius = '7px';
             li.style.marginBottom = '3px';
-            li.style.padding = '2px 6px 2px 6px';
+            li.style.padding = '2px 6px';
             li.style.display = 'flex';
             li.style.alignItems = 'center';
             li.style.justifyContent = 'space-between';
             li.innerHTML = `<span><span style='font-weight:bold;'>${task.title}</span>` + (task.hour ? ` <span style='font-size:12px;color:#6b7280;'>⏰ ${task.hour}</span>` : '') + `</span>`;
-            // Botón editar
+
             const editBtn = document.createElement('button');
             editBtn.innerHTML = '✏️';
             editBtn.title = 'Editar tarea';
@@ -420,12 +864,9 @@
             editBtn.style.cursor = 'pointer';
             editBtn.style.fontSize = '16px';
             editBtn.style.marginRight = '6px';
-            editBtn.onclick = function(e) {
-              e.stopPropagation();
-              editCalendarTask(currentYear, currentMonth, i, idx, task);
-            };
+            editBtn.onclick = function(e) { e.stopPropagation(); editCalendarTask(currentYear, currentMonth, day, idx, task); };
             li.appendChild(editBtn);
-            // Botón eliminar
+
             const delBtn = document.createElement('button');
             delBtn.innerHTML = '🗑️';
             delBtn.title = 'Eliminar tarea';
@@ -433,13 +874,62 @@
             delBtn.style.border = 'none';
             delBtn.style.cursor = 'pointer';
             delBtn.style.fontSize = '16px';
-            delBtn.onclick = function(e) {
-              e.stopPropagation();
-              deleteCalendarTask(currentYear, currentMonth, i, idx);
-            };
+            delBtn.onclick = function(e) { e.stopPropagation(); deleteCalendarTask(currentYear, currentMonth, day, idx); };
             li.appendChild(delBtn);
+
             taskList.appendChild(li);
           });
+          dayDiv.appendChild(taskList);
+        }
+
+        dayDiv.onclick = function(e){ e.stopPropagation(); showTaskForm(currentYear, currentMonth, day, dayDiv); };
+        cal.appendChild(dayDiv);
+      }
+    }
+    function startPomodoro(){
+      if(pomodoroTimer) return;
+      isPaused = false;
+      document.getElementById('pauseBtn').style.display = 'inline-block';
+      document.querySelector('button[onclick="startPomodoro()"]').style.display = 'none';
+      
+      pomodoroTimer = setInterval(()=>{
+        if(pomodoroTimeLeft>0){
+          pomodoroTimeLeft--;
+          updatePomodoro();
+        } else {
+          isWorkPhase = !isWorkPhase;
+          pomodoroTimeLeft = isWorkPhase ? workDuration : breakDuration;
+          updatePomodoro();
+          const message = isWorkPhase ? '¡Descanso terminado! A trabajar 💪' : '¡Trabajo terminado! Descansa 🌸';
+          alert(message);
+          playNotificationSound();
+        }
+      },1000);
+    }
+    
+    function pausePomodoro(){
+      if(pomodoroTimer) {
+        clearInterval(pomodoroTimer);
+        pomodoroTimer = null;
+        isPaused = true;
+        document.getElementById('pauseBtn').innerText = 'Reanudar';
+        document.getElementById('pauseBtn').onclick = startPomodoro;
+      }
+    }
+    
+    function resetPomodoro(){
+      clearInterval(pomodoroTimer);
+      pomodoroTimer = null;
+      isPaused = false;
+      isWorkPhase = true;
+      pomodoroTimeLeft = workDuration;
+      updatePomodoro();
+      document.getElementById('pauseBtn').style.display = 'none';
+      document.getElementById('pauseBtn').innerText = 'Pausar';
+      document.getElementById('pauseBtn').onclick = pausePomodoro;
+      document.querySelector('button[onclick="startPomodoro()"]').style.display = 'inline-block';
+    }
+          
 // Editar tarea del calendario
 function editCalendarTask(year, month, dayNum, taskIdx, task) {
   if(document.getElementById('calendarTaskForm')) return;
@@ -458,23 +948,30 @@ function editCalendarTask(year, month, dayNum, taskIdx, task) {
     <div style='font-weight:bold;color:#d6336c;font-size:18px;margin-bottom:10px;'>Editar tarea para el ${dayNum} de ${getMonthName(month)} ${year}</div>
     <input id='taskTitleInput' type='text' placeholder='Título de la tarea' value="${task.title.replace(/"/g, '&quot;')}" style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
     <input id='taskHourInput' type='time' value="${task.hour || ''}" style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-    <select id='taskAlarmInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-      <option value='10' ${task.alarm==10?'selected':''}>Alarma 10 minutos antes</option>
-      <option value='20' ${task.alarm==20?'selected':''}>Alarma 20 minutos antes</option>
-      <option value='180' ${task.alarm==180?'selected':''}>Alarma 3 horas antes</option>
-      <option value='0' ${!task.alarm?'selected':''}>Sin alarma</option>
-    </select>
-    <select id='taskSoundInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-      <option value='bell' ${task.sound==='bell'?'selected':''}>🔔 Campana</option>
-      <option value='ding' ${task.sound==='ding'?'selected':''}>🎵 Timbre</option>
-      <option value='soft' ${task.sound==='soft'?'selected':''}>🌸 Melodía suave</option>
-    </select>
+    <div style='margin-bottom:8px;'>
+      <label style='font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px;'>Minutos antes (0 = sin alarma)</label>
+      <input id='taskAlarmInput' type='number' min='0' max='1440' value="${task.alarm || 0}" style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+    </div>
+    <div style='display:flex;gap:8px;align-items:center;margin-bottom:8px;'>
+      <select id='taskSoundInput' style='flex:1;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+        <option value='none' ${task.sound==='none'?'selected':''}>🔕 Sin timbre</option>
+        <option value='bell' ${task.sound==='bell'?'selected':''}>🔔 Campana</option>
+        <option value='ding' ${task.sound==='ding'?'selected':''}>🎵 Timbre</option>
+        <option value='soft' ${task.sound==='soft'?'selected':''}>🌸 Melodía suave</option>
+      </select>
+      <button id='testSoundBtnEdit' style='white-space:nowrap;padding:7px 10px;border-radius:8px;border:1px solid #e6e6e6;background:#fff;cursor:pointer;'>🔔 Probar</button>
+    </div>
     <div style='font-size:13px;color:#6b7280;margin-bottom:10px;'>La hora de entrega, la alarma y el sonido son opcionales</div>
     <button id='saveEditTaskBtn' class='btn-primary' style='width:100%;margin-bottom:6px;'>Guardar cambios</button>
     <button id='cancelEditTaskBtn' class='btn-muted' style='width:100%;'>Cancelar</button>
   `;
   document.body.appendChild(form);
   document.getElementById('taskTitleInput').focus();
+  // asignar handler al botón de prueba del formulario de editar
+  const testEdit = document.getElementById('testSoundBtnEdit');
+  if(testEdit){
+    testEdit.onclick = function(e){ e.stopPropagation(); const s = document.getElementById('taskSoundInput').value; if(s === 'none'){ alert('Sin timbre seleccionado'); return; } playAlarmSound(s); };
+  }
   document.getElementById('cancelEditTaskBtn').onclick = function() {
     form.remove();
   };
@@ -484,7 +981,7 @@ function editCalendarTask(year, month, dayNum, taskIdx, task) {
     const alarm = parseInt(document.getElementById('taskAlarmInput').value);
     const sound = document.getElementById('taskSoundInput').value;
     if(!title) { alert('Por favor, escribe un título para la tarea.'); return; }
-    const key = `calendar-tasks-${year}-${month}`;
+    const key = UserSystem.getUserKey(`calendar-tasks-${year}-${month}`);
     let tasks = JSON.parse(localStorage.getItem(key) || '{}');
     if(tasks[dayNum] && tasks[dayNum][taskIdx]) {
       tasks[dayNum][taskIdx] = {title, hour, alarm, sound};
@@ -496,7 +993,7 @@ function editCalendarTask(year, month, dayNum, taskIdx, task) {
 }
 // Eliminar tarea del calendario
 function deleteCalendarTask(year, month, dayNum, taskIdx) {
-  const key = `calendar-tasks-${year}-${month}`;
+  const key = UserSystem.getUserKey(`calendar-tasks-${year}-${month}`);
   let tasks = JSON.parse(localStorage.getItem(key) || '{}');
   if(tasks[dayNum]) {
     tasks[dayNum].splice(taskIdx, 1);
@@ -507,16 +1004,7 @@ function deleteCalendarTask(year, month, dayNum, taskIdx) {
     generateCalendar();
   }
 }
-          day.appendChild(taskList);
-        }
-        day.onclick = function(e) {
-          e.stopPropagation();
-          showTaskForm(currentYear, currentMonth, i, day);
-        };
-        cal.appendChild(day);
-      }
-    }
-
+    
 // Formulario flotante para agregar tarea a un día
 function showTaskForm(year, month, dayNum, dayElem) {
       // Evitar múltiples formularios
@@ -536,23 +1024,30 @@ function showTaskForm(year, month, dayNum, dayElem) {
         <div style='font-weight:bold;color:#d6336c;font-size:18px;margin-bottom:10px;'>Agregar tarea para el ${dayNum} de ${getMonthName(month)} ${year}</div>
         <input id='taskTitleInput' type='text' placeholder='Título de la tarea' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
         <input id='taskHourInput' type='time' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-        <select id='taskAlarmInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-          <option value='10'>Alarma 10 minutos antes</option>
-          <option value='20'>Alarma 20 minutos antes</option>
-          <option value='180'>Alarma 3 horas antes</option>
-          <option value='0'>Sin alarma</option>
-        </select>
-        <select id='taskSoundInput' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
-          <option value='bell'>🔔 Campana</option>
-          <option value='ding'>🎵 Timbre</option>
-          <option value='soft'>🌸 Melodía suave</option>
-        </select>
+        <div style='margin-bottom:8px;'>
+          <label style='font-size:12px;font-weight:600;color:#666;display:block;margin-bottom:6px;'>Minutos antes (0 = sin alarma)</label>
+          <input id='taskAlarmInput' type='number' min='0' max='1440' value='10' style='width:100%;margin-bottom:8px;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+        </div>
+        <div style='display:flex;gap:8px;align-items:center;margin-bottom:8px;'>
+          <select id='taskSoundInput' style='flex:1;padding:7px;border-radius:8px;border:1px solid #e6e6e6;'>
+            <option value='none'>🔕 Sin timbre</option>
+            <option value='bell'>🔔 Campana</option>
+            <option value='ding'>🎵 Timbre</option>
+            <option value='soft'>🌸 Melodía suave</option>
+          </select>
+          <button id='testSoundBtnAdd' style='white-space:nowrap;padding:7px 10px;border-radius:8px;border:1px solid #e6e6e6;background:#fff;cursor:pointer;'>🔔 Probar</button>
+        </div>
         <div style='font-size:13px;color:#6b7280;margin-bottom:10px;'>La hora de entrega, la alarma y el sonido son opcionales</div>
         <button id='saveTaskBtn' class='btn-primary' style='width:100%;margin-bottom:6px;'>Guardar tarea</button>
         <button id='cancelTaskBtn' class='btn-muted' style='width:100%;'>Cancelar</button>
       `;
       document.body.appendChild(form);
       document.getElementById('taskTitleInput').focus();
+      // asignar handler al botón de prueba del formulario de añadir
+      const testAdd = document.getElementById('testSoundBtnAdd');
+      if(testAdd){
+        testAdd.onclick = function(e){ e.stopPropagation(); const s = document.getElementById('taskSoundInput').value; if(s === 'none'){ alert('Sin timbre seleccionado'); return; } playAlarmSound(s); };
+      }
       document.getElementById('cancelTaskBtn').onclick = function() {
         form.remove();
       };
@@ -570,19 +1065,87 @@ function showTaskForm(year, month, dayNum, dayElem) {
 
 // Guardar tarea en localStorage
 function saveCalendarTask(year, month, dayNum, title, hour, alarm, sound) {
-  const key = `calendar-tasks-${year}-${month}`;
+  const key = UserSystem.getUserKey(`calendar-tasks-${year}-${month}`);
   let tasks = JSON.parse(localStorage.getItem(key) || '{}');
   if(!tasks[dayNum]) tasks[dayNum] = [];
   tasks[dayNum].push({title, hour, alarm, sound});
   localStorage.setItem(key, JSON.stringify(tasks));
 }
 
-// Sonidos de alarma
+// Sonidos de alarma (URLs) — creamos un nuevo Audio al reproducir para asegurar variaciones
 const alarmSounds = {
-  bell: new Audio('https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae3b2.mp3'), // Campana
-  ding: new Audio('https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7b7b.mp3'), // Timbre
-  soft: new Audio('https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b7b7b7.mp3') // Melodía suave
+  bell: 'https://cdn.pixabay.com/audio/2022/07/26/audio_124bfae3b2.mp3', // Campana
+  ding: 'https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b7b7b.mp3', // Timbre
+  soft: 'https://cdn.pixabay.com/audio/2022/10/16/audio_12b6b7b7b7.mp3' // Melodía suave
 };
+
+// Reproducir sonido de alarma con fallback a WebAudio (evitar reusar mismo objeto y asegurar sonido correcto)
+function playAlarmSound(type){
+  // si el usuario seleccionó 'Sin timbre', no reproducir
+  if(type === 'none') return;
+  try{
+    const url = alarmSounds[type] || alarmSounds.bell;
+    if(url){
+      const a = new Audio(url);
+      a.currentTime = 0;
+      const p = a.play();
+      if(p && p.catch){
+        p.catch(()=>{ playNotificationSound(); });
+      }
+      return;
+    }
+  }catch(e){ }
+  // Fallback: tono corto usando WebAudio
+  playNotificationSound();
+}
+
+// Chequear tareas con alarma y reproducir cuando corresponda
+function checkTaskAlarms(){
+  const user = UserSystem.getCurrentUser();
+  if(!user) return;
+  const prefix = `user_${user}_calendar-tasks-`;
+  const now = Date.now();
+  for(let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(!k || !k.startsWith(prefix)) continue;
+    const suffix = k.slice(prefix.length); // e.g. '2025-10'
+    const parts = suffix.split('-');
+    if(parts.length < 2) continue;
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    let tasksByDay = {};
+    try{ tasksByDay = JSON.parse(localStorage.getItem(k) || '{}'); }catch(e){ continue; }
+    Object.keys(tasksByDay).forEach(dayKey => {
+      const dayNum = parseInt(dayKey);
+      const list = tasksByDay[dayKey] || [];
+      list.forEach((task, idx)=>{
+        if(!task || !task.hour) return;
+        const alarmMins = parseInt(task.alarm || 0);
+        if(!alarmMins) return;
+        const hourParts = (''+task.hour).split(':');
+        if(hourParts.length<2) return;
+        const hh = parseInt(hourParts[0]);
+        const mm = parseInt(hourParts[1]);
+        const taskTime = new Date(year, month, dayNum, hh, mm).getTime();
+        const alarmTime = taskTime - alarmMins*60*1000;
+        const firedKey = UserSystem.getUserKey(`alarm_fired_${year}_${month}_${dayNum}_${idx}`);
+        if(localStorage.getItem(firedKey)) return; // already played
+        // if current time is within 60s window after alarmTime, trigger
+        if(now >= alarmTime && now < alarmTime + 60*1000){
+          // play sound (task.sound may be set)
+          playAlarmSound(task.sound || 'bell');
+          try{ localStorage.setItem(firedKey, '1'); }catch(e){}
+        }
+      });
+    });
+  }
+}
+
+function initTaskAlarms(){
+  // run now and then every 30s
+  try{ checkTaskAlarms(); }catch(e){}
+  setInterval(()=>{ try{ checkTaskAlarms(); }catch(e){} }, 30*1000);
+}
 
 
 document.getElementById('prevMonth').onclick = function() {
